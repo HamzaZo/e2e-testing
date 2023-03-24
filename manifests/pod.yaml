@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: e2e-testing
+  namespace: e2e-test
+spec:
+  serviceAccountName: e2e
+  containers:
+  - name: e2e-testing
+    imagePullPolicy: IfNotPresent
+    image: e2e:v0.1.0
+    env:
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: NAMESPACE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+    command:
+    - /e2e
+    args:
+    - --ingress-url=myhost.com
+    - --registry=docker.io
+    - --e2e-pod-name=$POD_NAME
+    - --e2e-namespace=$NAMESPACE_NAME

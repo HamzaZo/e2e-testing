@@ -71,6 +71,11 @@ func (f FlowTest) CreateResources(api *ApiClient) error {
 func createNamespace(api *ApiClient) error {
 	ns := []string{DemoNamespace, NetNamespace}
 	for _, item := range ns {
+		_, err := api.ClientSet.CoreV1().Namespaces().Get(context.TODO(), item, metaV1.GetOptions{})
+		if err == nil {
+			fmt.Printf("Namespace %s already exists\n", ns)
+			continue
+		}
 		n := coreV1.Namespace{
 			ObjectMeta: metaV1.ObjectMeta{
 				Name: item,
@@ -80,7 +85,7 @@ func createNamespace(api *ApiClient) error {
 			},
 		}
 
-		_, err := api.ClientSet.CoreV1().Namespaces().Create(context.TODO(), &n, metaV1.CreateOptions{})
+		_, err = api.ClientSet.CoreV1().Namespaces().Create(context.TODO(), &n, metaV1.CreateOptions{})
 		if err != nil {
 			return err
 		}
