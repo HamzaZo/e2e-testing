@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	bacth "k8s.io/api/batch/v1"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,14 +18,14 @@ const (
 	eventType = coreV1.EventTypeNormal
 )
 
-func UpdateEventStatus(api *ApiClient, namespace, podName string) error {
+func UpdateEventStatus(api *ApiClient, namespace, jobName string) error {
 
-	p, err := api.ClientSet.CoreV1().Pods(namespace).Get(context.Background(), podName, metaV1.GetOptions{})
+	j, err := api.ClientSet.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metaV1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	scheme := runtime.NewScheme()
-	_ = coreV1.AddToScheme(scheme)
+	_ = bacth.AddToScheme(scheme)
 
 	klog.Info("Updating e2e pod event..")
 
@@ -32,7 +33,7 @@ func UpdateEventStatus(api *ApiClient, namespace, podName string) error {
 	eventBroadcaster.StartStructuredLogging(4)
 	eventBroadcaster.StartRecordingToSink(&typedv1core.EventSinkImpl{Interface: api.ClientSet.CoreV1().Events("")})
 	eventRecorder := eventBroadcaster.NewRecorder(scheme, coreV1.EventSource{})
-	eventRecorder.Event(p, eventType, reason, message)
+	eventRecorder.Event(j, eventType, reason, message)
 	eventBroadcaster.Shutdown()
 	time.Sleep(2 * time.Second)
 

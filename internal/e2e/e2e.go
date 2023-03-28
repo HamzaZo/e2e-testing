@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"crypto/tls"
 	"e2e-k8s/internal/utils"
 	"flag"
 	"fmt"
@@ -223,6 +224,7 @@ func createSvc(namespace string, api *ApiClient) error {
 
 func createIngress(namespace, host string, api *ApiClient) error {
 	iPath := networkingv1.PathType("Exact")
+	ingressClass := "my-class"
 	i := networkingv1.Ingress{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name: "demo-k8s-ingress",
@@ -230,8 +232,12 @@ func createIngress(namespace, host string, api *ApiClient) error {
 				"e2e": "demo-k8s",
 			},
 			Namespace: namespace,
+			Annotations: map[string]string{
+				"cert-manager.io/cluster-issuer": "ca-cluster",
+			},
 		},
 		Spec: networkingv1.IngressSpec{
+			IngressClassName: &ingressClass,
 			Rules: []networkingv1.IngressRule{
 				{
 					Host: host,
@@ -253,6 +259,12 @@ func createIngress(namespace, host string, api *ApiClient) error {
 							},
 						},
 					},
+				},
+			},
+			TLS: []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{host},
+					SecretName: "secret",
 				},
 			},
 		},
@@ -383,7 +395,7 @@ func getPodLogs(api *ApiClient, namespace, label string) (string, error) {
 	}
 }
 
-func (f FlowTest) ValidateFlowE2e(api *ApiClient, host string, e2eNamespace, e2ePodName string) error {
+func (f FlowTest) ValidateFlowE2e(api *ApiClient, host string, e2eNamespace, e2eJobName string) error {
 	flow, err := CheckNetworkFlow(api)
 	if err != nil {
 		return err
@@ -395,7 +407,7 @@ func (f FlowTest) ValidateFlowE2e(api *ApiClient, host string, e2eNamespace, e2e
 		if err != nil {
 			return err
 		}
-		err = UpdateEventStatus(api, e2eNamespace, e2ePodName)
+		err = UpdateEventStatus(api, e2eNamespace, e2eJobName)
 		if err != nil {
 			return err
 		}
@@ -418,15 +430,25 @@ func CheckNetworkFlow(api *ApiClient) (bool, error) {
 }
 
 func CheckIngressFlow(host string) error {
-	resp, err := http.Get(fmt.Sprintf("%v/demo-k8s", host))
-	if err != nil {
-		klog.Errorf("failed to send HTTP request to ingress")
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	defer resp.Body.Close()
+	client := &http.Client{Transport: transport}
 
-	if resp.StatusCode != http.StatusOK {
+	for {
+		resp, err := client.Get(fmt.Sprintf("https://%v/demo-k8s", host))
+		if err != nil {
+			klog.Errorf("failed to send HTTP request to ingress")
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			return nil
+		}
+
 		klog.Errorf("expected HTTP status code %d, got %d", http.StatusOK, resp.StatusCode)
+		time.Sleep(5 * time.Second)
 	}
-
-	return nil
 }

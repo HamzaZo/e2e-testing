@@ -10,7 +10,7 @@ var (
 	ingressURL   string
 	registryURL  string
 	e2eNamespace string
-	e2ePodName   string
+	e2eJobName   string
 )
 
 const globalUsage = `
@@ -37,8 +37,8 @@ func NewRootCmd(_ io.Writer) *cobra.Command {
 	cobra.MarkFlagRequired(flags, "ingress-url")
 	flags.StringVarP(&registryURL, "registry", "r", "", "Specify docker registry")
 	cobra.MarkFlagRequired(flags, "registry")
-	flags.StringVarP(&e2ePodName, "e2e-pod-name", "p", "", "Specify e2e pod name ")
-	cobra.MarkFlagRequired(flags, "e2e-pod-name")
+	flags.StringVarP(&e2eJobName, "e2e-job-name", "j", "", "Specify e2e job name ")
+	cobra.MarkFlagRequired(flags, "e2e-job-name")
 	flags.StringVarP(&e2eNamespace, "e2e-namespace", "n", "", "Specify e2e namespace")
 	cobra.MarkFlagRequired(flags, "e2e-namespace")
 
@@ -60,7 +60,7 @@ func runE2e() error {
 	if err != nil {
 		return err
 	}
-	err = flow.ValidateFlowE2e(client, flow.Host, e2eNamespace, e2ePodName)
+	err = flow.ValidateFlowE2e(client, flow.Host, e2eNamespace, e2eJobName)
 	if err != nil {
 		return err
 	}
